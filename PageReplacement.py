@@ -1,74 +1,9 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-def fifo(pages, frames):
-    memory, faults, hits, memory_states = ['-']*frames, 0, 0, []
-
-    idx = 0
-    for page in pages:
-        if page not in memory:
-            memory[idx%frames] = page
-            faults += 1
-            idx += 1    
-        else:
-            hits += 1
-        memory_states.append(list(memory))  # Capture memory state
-    hit_ratio = hits / len(pages)
-    return (memory, faults, hits, hit_ratio, memory_states)
-
-def optimal(pages, frames):
-    memory, faults, hits, memory_states = ['-'] * frames, 0, 0, []
-
-    for i in range(len(pages)):
-        if pages[i] not in memory:
-            if '-' in memory:
-                memory[memory.index('-')] = pages[i]
-            else:
-                farthest = -1
-                replace_index = -1
-                for j in range(len(memory)):
-                    if memory[j] not in pages[i + 1:]:
-                        replace_index = j
-                        break
-                    else:
-                        next_use = pages[i + 1:].index(memory[j])
-                        if next_use > farthest:
-                            farthest = next_use
-                            replace_index = j
-                memory[replace_index] = pages[i]
-            faults += 1
-        else:
-            hits += 1
-        memory_states.append(list(memory))
-
-    hit_ratio = hits / len(pages)
-    return (memory, faults, hits, hit_ratio, memory_states)
-
-def lru(pages, frames):
-    memory, faults, hits, stack, memory_states = ['-']*frames, 0, 0, [], []
-    
-    idx = 0
-    for page in pages:
-        if page not in memory:
-            if memory[-1] == '-':
-                memory[idx] = page
-                idx += 1
-                stack.append(page)
-            else:
-                lru_page = stack.pop(0)
-                memory.remove(lru_page)
-                memory.append(page)
-                stack.append(page)
-            faults += 1
-        else:
-            hits += 1
-            stack.remove(page)
-            stack.append(page)
-            memory.remove(page)
-            memory.append(page)
-        memory_states.append(list(memory))  # Capture memory state
-    hit_ratio = hits / len(pages)
-    return (memory, faults, hits, hit_ratio, memory_states)
+from fifo import fifo
+from optimal import optimal
+from lru import lru
 
 class PageReplacementSimulator:
     def __init__(self, root):
@@ -88,7 +23,7 @@ class PageReplacementSimulator:
 
         self.algorithm_combobox = ttk.Combobox(frame, values=["FIFO", "Optimal", "LRU"], state="readonly")
         self.algorithm_combobox.grid(row=2, column=1, sticky=tk.W)
-        self.algorithm_combobox.set("FIFO")
+        self.algorithm_combobox.set("Optimal")
 
         ttk.Label(frame, text="Page Sequence:").grid(row=0, column=0, sticky=tk.W)
         ttk.Label(frame, text="Frame Size:").grid(row=1, column=0, sticky=tk.W)
@@ -104,24 +39,22 @@ class PageReplacementSimulator:
         frames = int(self.frame_size_entry.get())
         algorithm = self.algorithm_combobox.get()
 
+        next_states = [[''] * frames for i in range(len(pages))]
         if algorithm == "FIFO":
             _, faults, hits, hit_ratio, memory_states = fifo(pages, frames)
         elif algorithm == "Optimal":
-            _, faults, hits, hit_ratio, memory_states = optimal(pages, frames)
+            _, faults, hits, hit_ratio, memory_states, next_states = optimal(pages, frames)
         elif algorithm == "LRU":
             _, faults, hits, hit_ratio, memory_states = lru(pages, frames)
         else:
             messagebox.showerror("Error", "Please select a valid algorithm")
             return
 
-        self.plot_memory_states(memory_states, faults, hits, hit_ratio, algorithm)
+        self.plot_memory_states(memory_states, faults, hits, hit_ratio, algorithm, next_states)
 
-    def plot_memory_states(self, memory_states, faults, hits, hit_ratio, algorithm):
-        # Define cell dimensions and offsets
-        cell_width = 40
-        cell_height = 50
-        offset_x = 50
-        offset_y = 70
+    def plot_memory_states(self, memory_states, faults, hits, hit_ratio, algorithm, next_states):
+        cell_width, cell_height = 40, 60
+        offset_x, offset_y = 50, 70
 
         # Calculate the required canvas width dynamically
         num_columns = len(memory_states)
@@ -156,10 +89,15 @@ class PageReplacementSimulator:
                 x = offset_x + col * cell_width
                 y = offset_y + row * cell_height
                 # Highlight new pages in red
-                color = "red" if frame[row] not in previous_frame and frame[row] != '-' else "white"
+                color = "spring green" if frame[row] not in previous_frame and frame[row] != '-' else "white"
                 text_color = "black" if color == "red" else "black"
                 self.canvas_widget.create_rectangle(x, y, x + cell_width, y + cell_height, outline="black", fill=color)
                 self.canvas_widget.create_text(x + cell_width // 2, y + cell_height // 2, text=str(page) if page is not None else "-", fill=text_color, font=("Arial", 12))
+
+                # Display the next state as a subscript
+                if next_states and row < len(next_states[col]) and next_states[col][row] != '':
+                    next_state = next_states[col][row]
+                    self.canvas_widget.create_text(x + cell_width // 2, y + cell_height - 5, text=f"{next_state}", fill="blue", font=("Arial", 8))
 
             # Update the previous frame state
             previous_frame = frame[:]

@@ -1,7 +1,7 @@
 import heapq
 
 def fifo(pages, frames):
-    memory, faults, hits, memory_states = ['-']*frames, 0, 0, []
+    memory, faults, hits, memory_states = ['-'] * frames, 0, 0, []
 
     idx = 0
     for page in pages:

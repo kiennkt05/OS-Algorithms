@@ -58,9 +58,6 @@ class PageReplacementSimulator:
         run_button = ttk.Button(frame, text="Run Simulation", command=self.run_simulation)
         run_button.grid(row=1, column=0, sticky=tk.W, pady=10)
 
-        graph_button = ttk.Button(frame, text="Show Graph", command=self.show_graph)
-        graph_button.grid(row=1, column=1, sticky=tk.W, pady=10)
-
         self.graph_canvas = None  # Placeholder for the graph canvas
         self.run_simulation()
 
